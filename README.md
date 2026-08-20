@@ -1,0 +1,2 @@
+# ARINDIR
+Kod Geliştirme Stratejileri
