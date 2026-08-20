@@ -1,6 +1,6 @@
 import { useMemo } from "react";
 import type { Analysis } from "../lib/analyze";
-import { SEVERITY_META } from "../lib/analyze";
+import { LANG_META, SEVERITY_META } from "../lib/analyze";
 import { useAnimatedNumber } from "../lib/hooks";
 
 interface ReportProps {
@@ -49,7 +49,8 @@ function Sparkline({ data }: { data: number[] }) {
 }
 
 export default function Report({ analysis, history, selectedId, onSelect }: ReportProps) {
-  const { empty, score, findings, metrics } = analysis;
+  const { empty, score, findings, metrics, langLabel, lang } = analysis;
+  const langColor = LANG_META[lang].color;
   const anim = useAnimatedNumber(empty ? 0 : score, 650);
 
   const sig = useMemo(
@@ -71,6 +72,12 @@ export default function Report({ analysis, history, selectedId, onSelect }: Repo
           <span className="live-dot h-1.5 w-1.5 rounded-full bg-mint-400" />
           <span className="font-mono text-[11px] font-medium uppercase tracking-[0.18em] text-ink-200">
             canlı rapor
+          </span>
+          <span
+            className="rounded-sm px-1.5 py-0.5 font-mono text-[9.5px] uppercase tracking-wider"
+            style={{ background: `${langColor}1a`, color: langColor }}
+          >
+            {langLabel}
           </span>
         </div>
         <Sparkline data={history} />

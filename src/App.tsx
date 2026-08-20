@@ -6,11 +6,27 @@ import {
   analyze,
   autoFix,
   CLEAN_SAMPLE,
+  DART_SAMPLE,
+  LANG_META,
   MESSY_SAMPLE,
   SEVERITY_META,
 } from "./lib/analyze";
+import type { Lang } from "./lib/analyze";
 
-const STORAGE_KEY = "arindir:code:v1";
+const STORAGE_KEY = "arindir:code:v2";
+const LANG_KEY = "arindir:lang:v1";
+
+type LangChoice = Lang | "auto";
+
+const LANG_OPTIONS: { value: LangChoice; label: string }[] = [
+  { value: "auto", label: "Otomatik algıla" },
+  { value: "dart", label: "Dart / Flutter" },
+  { value: "js", label: "JavaScript" },
+  { value: "ts", label: "TypeScript" },
+  { value: "python", label: "Python" },
+  { value: "html", label: "HTML" },
+  { value: "css", label: "CSS" },
+];
 
 function loadInitialCode(): string {
   try {
@@ -22,23 +38,36 @@ function loadInitialCode(): string {
   return MESSY_SAMPLE;
 }
 
+function loadInitialLang(): LangChoice {
+  try {
+    const saved = localStorage.getItem(LANG_KEY) as LangChoice | null;
+    if (saved) return saved;
+  } catch {
+    /* sessiz geç */
+  }
+  return "auto";
+}
+
 export default function App() {
   const [code, setCode] = useState<string>(loadInitialCode);
+  const [langChoice, setLangChoice] = useState<LangChoice>(loadInitialLang);
   const [history, setHistory] = useState<number[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ id: number; msg: string } | null>(null);
   const toastTimer = useRef(0);
 
-  const analysis = useMemo(() => analyze(code), [code]);
+  const analysis = useMemo(() => analyze(code, langChoice), [code, langChoice]);
+  const langMeta = LANG_META[analysis.lang];
 
-  /* kodu sakla */
+  /* kodu + dil seçimini sakla */
   useEffect(() => {
     try {
       localStorage.setItem(STORAGE_KEY, code);
+      localStorage.setItem(LANG_KEY, langChoice);
     } catch {
       /* sessiz geç */
     }
-  }, [code]);
+  }, [code, langChoice]);
 
   /* puan geçmişini biriktir */
   useEffect(() => {
@@ -78,9 +107,9 @@ export default function App() {
   const highlightHex = selected ? SEVERITY_META[selected.severity].hex : "#ffab3d";
 
   const handleFix = () => {
-    const res = autoFix(code);
+    const res = autoFix(code, analysis.lang);
     if (res.applied === 0) {
-      showToast("Uygulanacak güvenli düzeltme kalmadı.");
+      showToast("Bu dilde uygulanacak güvenli düzeltme kalmadı.");
       return;
     }
     setCode(res.code);
@@ -102,14 +131,21 @@ export default function App() {
     }
   };
 
-  const loadSample = (kind: "messy" | "clean") => {
-    setCode(kind === "messy" ? MESSY_SAMPLE : CLEAN_SAMPLE);
+  const loadSample = (kind: "js" | "dart" | "clean") => {
+    const next = kind === "js" ? MESSY_SAMPLE : kind === "dart" ? DART_SAMPLE : CLEAN_SAMPLE;
+    setCode(next);
     setSelectedId(null);
-    showToast(kind === "messy" ? "Dağınık örnek yüklendi." : "Temiz örnek yüklendi.");
+    showToast(
+      kind === "js"
+        ? "Dağınık JavaScript örneği yüklendi."
+        : kind === "dart"
+        ? "Flutter örneği yüklendi — Dart kuralları aktif."
+        : "Temiz örnek yüklendi."
+    );
   };
 
   const btnGhost =
-    "rounded-md border border-ink-600 px-3 py-1.5 font-mono text-[11px] uppercase tracking-wider text-ink-200 transition-all duration-150 hover:-translate-y-px hover:border-ink-400 hover:text-ink-50 active:translate-y-0 active:scale-[0.97]";
+    "rounded-md border border-ink-600 px-2.5 py-1.5 font-mono text-[11px] uppercase tracking-wider text-ink-200 transition-all duration-150 hover:-translate-y-px hover:border-ink-400 hover:text-ink-50 active:translate-y-0 active:scale-[0.97]";
 
   return (
     <div className="relative min-h-screen overflow-x-clip">
@@ -134,7 +170,7 @@ export default function App() {
                 <svg className="h-3 w-3" viewBox="0 0 8 8" fill="currentColor">
                   <path d="M4 0l4 4-4 4-4-4z" />
                 </svg>
-                sezgisel motor · gerçek zamanlı
+                dil-farkındalıklı motor · gerçek zamanlı
                 <span className="caret-blink -ml-1 inline-block h-3.5 w-[7px] bg-ember-400" />
               </p>
               <h1 className="mt-4 font-display text-[clamp(2.3rem,5.2vw,3.8rem)] font-bold leading-[1.03] tracking-tight text-ink-50">
@@ -145,20 +181,20 @@ export default function App() {
             </div>
             <div className="lg:pb-2">
               <p className="max-w-md text-[15px] leading-relaxed text-ink-300">
-                Arındır, editöre bıraktığın kodu{" "}
-                <em className="not-italic text-ink-100">yazarken</em> tarar: gevşek eşitlikten
-                kopya bloklara on kontrolü tek geçişte çalıştırır, 100 üzerinden puanlar ve
-                güvenli düzeltmeleri tek tıkla uygular.
+                Arındır önce kodun <em className="not-italic text-ink-100">dilini tanır</em>, sonra
+                yalnızca o dilin kurallarını çalıştırır. Dart'ta{" "}
+                <code className="rounded-sm bg-ink-800 px-1 font-mono text-[13px] text-mint-400">==</code>{" "}
+                ve{" "}
+                <code className="rounded-sm bg-ink-800 px-1 font-mono text-[13px] text-mint-400">var</code>{" "}
+                doğrudur — JavaScript kuralları asla bulaşmaz.
               </p>
               <div className="mt-5 flex items-center gap-5 font-mono text-[11px] uppercase tracking-wider text-ink-400">
                 <span>
-                  <b className="font-display text-lg font-bold normal-case text-ember-400">10</b>{" "}
-                  kontrol
+                  <b className="font-display text-lg font-bold normal-case text-ember-400">6</b> dil
                 </span>
                 <span className="h-4 w-px bg-ink-600" />
                 <span>
-                  <b className="font-display text-lg font-bold normal-case text-arc-400">0</b>{" "}
-                  sunucu
+                  <b className="font-display text-lg font-bold normal-case text-arc-400">0</b> sunucu
                 </span>
                 <span className="h-4 w-px bg-ink-600" />
                 <span>
@@ -176,43 +212,67 @@ export default function App() {
             {/* editör paneli */}
             <div className="overflow-hidden rounded-lg border border-ink-700 bg-ink-900/85 shadow-[0_24px_70px_-32px_rgba(0,0,0,0.9)]">
               <div className="flex flex-wrap items-center gap-2 border-b border-ink-700 bg-ink-850 px-3 py-2">
-                <div className="mr-auto flex items-center gap-2 rounded-md border border-ink-600 bg-ink-900 px-3 py-1.5">
-                  <svg className="h-3.5 w-3.5 text-ember-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
+                <div className="mr-1 flex items-center gap-2 rounded-md border border-ink-600 bg-ink-900 px-3 py-1.5">
+                  <svg className="h-3.5 w-3.5" style={{ color: langMeta.color }} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8">
                     <path d="M14 3v5h5M14 3H7a2 2 0 00-2 2v14a2 2 0 002 2h10a2 2 0 002-2V8l-5-5z" strokeLinecap="round" strokeLinejoin="round" />
                   </svg>
-                  <span className="font-mono text-[11.5px] text-ink-100">yapistirilan-kod.ts</span>
+                  <span className="font-mono text-[11.5px] text-ink-100">
+                    yapistirilan-kod{langMeta.ext}
+                  </span>
                 </div>
-                <button className={btnGhost} onClick={() => loadSample("messy")}>
-                  dağınık örnek
-                </button>
-                <button className={btnGhost} onClick={() => loadSample("clean")}>
-                  temiz örnek
-                </button>
-                <button
-                  onClick={handleCopy}
-                  className={`${btnGhost} flex items-center gap-1.5`}
-                  title="Kodu panoya kopyala"
-                >
-                  <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-                    <rect x="9" y="9" width="11" height="11" rx="2" />
-                    <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" strokeLinecap="round" />
-                  </svg>
-                  kopyala
-                </button>
-                <button
-                  onClick={handleFix}
-                  className="group relative flex items-center gap-2 rounded-md border border-transparent bg-ember-500 px-3.5 py-1.5 font-mono text-[11px] font-bold uppercase tracking-wider text-ink-950 shadow-[0_6px_24px_-8px_rgba(255,171,61,0.7)] transition-all duration-150 hover:-translate-y-px hover:bg-ember-400 active:translate-y-0 active:scale-[0.97]"
-                >
-                  <svg className="h-3.5 w-3.5 transition-transform duration-300 group-hover:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
-                    <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1" strokeLinecap="round" />
-                  </svg>
-                  arındır
-                  {analysis.fixableCount > 0 && (
-                    <span className="rounded-sm bg-ink-950/25 px-1.5 py-0.5 text-[10px] font-bold">
-                      {analysis.fixableCount}
-                    </span>
-                  )}
-                </button>
+
+                {/* dil seçici */}
+                <label className="flex items-center gap-1.5 rounded-md border border-ink-600 bg-ink-900 px-2 py-1.5">
+                  <span className="font-mono text-[9.5px] uppercase tracking-wider text-ink-400">dil</span>
+                  <select
+                    value={langChoice}
+                    onChange={(e) => setLangChoice(e.target.value as LangChoice)}
+                    className="cursor-pointer bg-transparent font-mono text-[11.5px] text-ink-100 outline-none"
+                  >
+                    {LANG_OPTIONS.map((o) => (
+                      <option key={o.value} value={o.value} className="bg-ink-800 text-ink-100">
+                        {o.label}
+                      </option>
+                    ))}
+                  </select>
+                </label>
+
+                <div className="ml-auto flex flex-wrap items-center gap-2">
+                  <button className={btnGhost} onClick={() => loadSample("js")}>
+                    JS örneği
+                  </button>
+                  <button className={btnGhost} onClick={() => loadSample("dart")}>
+                    Flutter örneği
+                  </button>
+                  <button className={btnGhost} onClick={() => loadSample("clean")}>
+                    temiz
+                  </button>
+                  <button
+                    onClick={handleCopy}
+                    className={`${btnGhost} flex items-center gap-1.5`}
+                    title="Kodu panoya kopyala"
+                  >
+                    <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <rect x="9" y="9" width="11" height="11" rx="2" />
+                      <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" strokeLinecap="round" />
+                    </svg>
+                    kopyala
+                  </button>
+                  <button
+                    onClick={handleFix}
+                    className="group relative flex items-center gap-2 rounded-md border border-transparent bg-ember-500 px-3.5 py-1.5 font-mono text-[11px] font-bold uppercase tracking-wider text-ink-950 shadow-[0_6px_24px_-8px_rgba(255,171,61,0.7)] transition-all duration-150 hover:-translate-y-px hover:bg-ember-400 active:translate-y-0 active:scale-[0.97]"
+                  >
+                    <svg className="h-3.5 w-3.5 transition-transform duration-300 group-hover:rotate-180" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2">
+                      <path d="M12 3v3M12 18v3M3 12h3M18 12h3M5.6 5.6l2.1 2.1M16.3 16.3l2.1 2.1M18.4 5.6l-2.1 2.1M7.7 16.3l-2.1 2.1" strokeLinecap="round" />
+                    </svg>
+                    arındır
+                    {analysis.fixableCount > 0 && (
+                      <span className="rounded-sm bg-ink-950/25 px-1.5 py-0.5 text-[10px] font-bold">
+                        {analysis.fixableCount}
+                      </span>
+                    )}
+                  </button>
+                </div>
               </div>
 
               <Editor
@@ -225,17 +285,23 @@ export default function App() {
 
               <div className="flex items-center justify-between border-t border-ink-700 bg-ink-850 px-4 py-2 font-mono text-[10.5px] text-ink-400">
                 <span>
-                  {analysis.metrics.totalLines} satır · {analysis.chars.toLocaleString("tr-TR")}{" "}
-                  karakter
+                  {analysis.metrics.totalLines} satır · {analysis.chars.toLocaleString("tr-TR")} karakter
                   {selected && (
                     <span className="ml-2" style={{ color: highlightHex }}>
                       ⌖ “{selected.title}” satırları vurgulu
                     </span>
                   )}
                 </span>
-                <span className="flex items-center gap-1.5">
-                  <span className="live-dot h-1.5 w-1.5 rounded-full bg-mint-400" />
-                  heuristic-engine v0.9
+                <span className="flex items-center gap-2">
+                  <span
+                    className="flex items-center gap-1.5 rounded-sm px-1.5 py-0.5"
+                    style={{ background: `${langMeta.color}1a`, color: langMeta.color }}
+                  >
+                    <span className="live-dot h-1.5 w-1.5 rounded-full" style={{ background: langMeta.color }} />
+                    {langChoice === "auto" ? "algılandı: " : "dil: "}
+                    {langMeta.label}
+                  </span>
+                  <span className="hidden text-ink-500 sm:inline">çok-dilli motor v1.0</span>
                 </span>
               </div>
             </div>

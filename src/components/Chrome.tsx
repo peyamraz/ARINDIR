@@ -37,7 +37,7 @@ export function Masthead() {
             ARINDIR
           </span>
           <span className="mt-0.5 hidden font-mono text-[10px] uppercase tracking-[0.22em] text-ink-400 sm:inline">
-            kod arındırma stüdyosu
+            çok-dilli kod arındırma stüdyosu
           </span>
         </div>
         <div className="flex items-center gap-2">
@@ -48,12 +48,19 @@ export function Masthead() {
             </svg>
             tarayıcı içi · sunucusuz
           </div>
+          <div className="hidden items-center gap-1.5 rounded-full border border-ember-500/35 bg-ember-500/10 px-3 py-1 md:flex">
+            <svg className="h-3 w-3 text-ember-400" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+              <path d="M3 5h12M9 3v2M6 5c0 5 3 8 7 9M13 5c-1 6-5 10-10 11" strokeLinecap="round" strokeLinejoin="round" />
+              <path d="M14 14l6 7M20 14l-6 7" strokeLinecap="round" strokeLinejoin="round" />
+            </svg>
+            <span className="font-mono text-[10px] uppercase tracking-wider text-ember-300">dil-farkındalıklı</span>
+          </div>
           <div className="flex items-center gap-2 rounded-full border border-mint-500/35 bg-mint-500/10 px-3 py-1">
             <span className="live-dot h-1.5 w-1.5 rounded-full bg-mint-400" />
             <span className="font-mono text-[10px] uppercase tracking-wider text-mint-300">analiz canlı</span>
           </div>
           <div className="rounded-full border border-ink-600 px-2.5 py-1 font-mono text-[10px] text-ink-300">
-            v0.9
+            v1.0
           </div>
         </div>
       </div>
@@ -64,15 +71,17 @@ export function Masthead() {
 /* ---------- akan kontrol bandı ---------- */
 
 const TICKER_ITEMS = [
-  "var taraması",
-  "gevşek eşitlik",
-  "console kalıntıları",
+  "önce dili tanır",
+  "js: var taraması",
+  "js: gevşek eşitlik",
+  "dart: gereksiz new",
+  "dart: print() kalıntıları",
+  "python: import *",
   "todo / fixme",
   "uzun satırlar",
   "kopya bloklar",
   "iç içe derinlik",
   "yorum oranı",
-  "parametre sayısı",
   "gizli boşluklar",
 ];
 
@@ -106,16 +115,18 @@ export function Ticker() {
 
 /* ---------- neler taranıyor ---------- */
 
-const CHECKS = [
-  { t: "var → let / const dönüşümü", d: "kapsam sızıntısı" },
-  { t: "Gevşek eşitlik (==, !=)", d: "tip dönüşümü tuzağı" },
-  { t: "console.log kalıntıları", d: "debug sızıntısı" },
-  { t: "TODO / FIXME / HACK", d: "açık işareler" },
-  { t: "100+ karakter satırlar", d: "okunabilirlik" },
+const CHECKS: { t: string; d: string; lang?: string; hex?: string }[] = [
+  { t: "Dil algılama", d: "js · dart · py · html · css", hex: "#ffab3d" },
+  { t: "Gereksiz new (Dart)", d: "unnecessary_new", lang: "dart", hex: "#79c0ff" },
+  { t: "print() kalıntıları (Dart)", d: "debugPrint önerisi", lang: "dart", hex: "#79c0ff" },
+  { t: "var → let (JS)", d: "kapsam sızıntısı", lang: "js", hex: "#ffbe66" },
+  { t: "Gevşek eşitlik (JS)", d: "== / != tuzağı", lang: "js", hex: "#ffbe66" },
+  { t: "console.log kalıntıları", d: "debug sızıntısı", lang: "js", hex: "#ffbe66" },
+  { t: "Yıldızlı import (Py)", d: "isim alanı kirliliği", lang: "py", hex: "#6fe3a5" },
+  { t: "!important (CSS)", d: "özgüllük savaşı", lang: "css", hex: "#d2a8ff" },
   { t: "Kopyala-yapıştır blokları", d: "tekrar kokusu" },
   { t: "İç içe geçme derinliği", d: "ok biçimli kod" },
-  { t: "Yorum oranı", d: "niyet belgelenmesi" },
-  { t: "Parametre şişkinliği", d: "imza tasarımı" },
+  { t: "TODO / FIXME / HACK", d: "açık işaretler" },
   { t: "Satır sonu boşlukları", d: "görünmez gürültü" },
 ];
 
@@ -129,12 +140,14 @@ export function ScanStrip() {
             neler taranıyor
           </p>
           <h2 className="mt-2 font-display text-3xl font-bold tracking-tight text-ink-50 md:text-4xl">
-            On kontrol, tek geçiş.
+            Önce dili tanır, sonra tarar.
           </h2>
         </div>
         <p className="max-w-sm text-sm leading-relaxed text-ink-300">
-          Her tuş vuruşunda motor kodu baştan süzer; bulgular önem sırasına göre dizilir ve
-          doğrudan satıra bağlanır.
+          Motor her dili kendi kurallarıyla yargılar: Dart'ta{" "}
+          <code className="rounded-sm bg-ink-800 px-1 font-mono text-[12px] text-mint-400">==</code>{" "}
+          doğru kabul edilir, JS kuralları asla bulaşmaz. Emin olamazsa yalnızca güvenli ortak
+          kontrolleri çalıştırır.
         </p>
       </div>
       <div className="mt-7 flex flex-wrap gap-2.5">
@@ -156,9 +169,18 @@ export function ScanStrip() {
                 <path d="M8.5 12.3l2.3 2.3 4.7-5" strokeLinecap="round" strokeLinejoin="round" />
               </svg>
               <span className="text-[13px] font-medium text-ink-100">{c.t}</span>
-              <span className="font-mono text-[10px] text-ink-500">
-                {String(i + 1).padStart(2, "0")}
-              </span>
+              {c.lang ? (
+                <span
+                  className="rounded-sm px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider"
+                  style={{ background: `${c.hex}1a`, color: c.hex }}
+                >
+                  {c.lang}
+                </span>
+              ) : (
+                <span className="rounded-sm bg-ink-700 px-1.5 py-0.5 font-mono text-[9px] uppercase tracking-wider text-ink-300">
+                  ortak
+                </span>
+              )}
             </div>
             <p className="mt-1 pl-[22px] font-mono text-[10px] uppercase tracking-wider text-ink-400">
               {c.d}
@@ -175,20 +197,26 @@ export function ScanStrip() {
 const STEPS = [
   {
     n: "01",
-    t: "Yapıştır",
-    d: "Kodu editöre bırak; motor sen daha yazarken taramaya başlar, hiçbir şey yüklemezsin.",
+    t: "Tanı",
+    d: "Motor sinyal tabanlı puanlamayla dili belirler: Dart mı, JS mi, Python mu? İstersen elle de seçersin.",
     hex: "#ffab3d",
   },
   {
     n: "02",
+    t: "Yapıştır",
+    d: "Kodu editöre bırak; yalnızca o dilin kuralları sen daha yazarken taramaya başlar.",
+    hex: "#ffbe66",
+  },
+  {
+    n: "03",
     t: "İncele",
     d: "Puan kadranı, metrikler ve satıra inen bulgular anında raporlanır; bulguya tıkla, satır yanar.",
     hex: "#79c0ff",
   },
   {
-    n: "03",
+    n: "04",
     t: "Arındır",
-    d: "Güvenli düzeltmeleri tek tıkla uygula, sonucu panoya kopyala, kod review'a öyle gönder.",
+    d: "O dil için güvenli düzeltmeleri tek tıkla uygula, sonucu panoya kopyala, review'a öyle gönder.",
     hex: "#6fe3a5",
   },
 ];
@@ -199,18 +227,18 @@ export function HowItWorks() {
     <section ref={ref} className={`reveal ${shown ? "shown" : ""}`}>
       <p className="font-mono text-[11px] uppercase tracking-[0.24em] text-arc-400">süreç</p>
       <h2 className="mt-2 font-display text-3xl font-bold tracking-tight text-ink-50 md:text-4xl">
-        Üç adımda arınma.
+        Dört adımda arınma.
       </h2>
-      <ol className="mt-8 grid gap-8 md:grid-cols-3 md:gap-0">
+      <ol className="mt-8 grid gap-8 md:grid-cols-2 lg:grid-cols-4 lg:gap-0">
         {STEPS.map((s, i) => (
           <li
             key={s.n}
-            className={`group relative md:px-8 ${i === 0 ? "md:pl-0" : "md:border-l md:border-ink-700"} ${
-              i === 2 ? "md:pr-0" : ""
+            className={`group relative lg:px-6 ${i === 0 ? "lg:pl-0" : "lg:border-l lg:border-ink-700"} ${
+              i === STEPS.length - 1 ? "lg:pr-0" : ""
             }`}
           >
             <span
-              className="font-display text-[68px] font-bold leading-none tracking-tight transition-colors duration-300"
+              className="font-display text-[56px] font-bold leading-none tracking-tight transition-colors duration-300 lg:text-[64px]"
               style={{ WebkitTextStroke: `1.5px ${s.hex}66`, color: "transparent" }}
             >
               {s.n}
@@ -248,7 +276,7 @@ export function Footer() {
         <div className="flex items-center gap-4">
           <span className="text-ink-500">Space Grotesk · IBM Plex · JetBrains Mono</span>
           <span className="rounded-sm border border-ink-600 px-1.5 py-0.5 text-[10px] text-ink-300">
-            v0.9
+            v1.0 · çok-dilli
           </span>
         </div>
       </div>
