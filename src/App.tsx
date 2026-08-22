@@ -1,10 +1,12 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Editor from "./components/Editor";
 import Report from "./components/Report";
+import DiffModal from "./components/DiffModal";
 import { Footer, HowItWorks, Masthead, ScanStrip, Ticker } from "./components/Chrome";
 import {
   analyze,
   autoFix,
+  buildMarkdownReport,
   CLEAN_SAMPLE,
   DART_SAMPLE,
   LANG_META,
@@ -12,6 +14,8 @@ import {
   SEVERITY_META,
 } from "./lib/analyze";
 import type { Lang } from "./lib/analyze";
+import { diffLines } from "./lib/diff";
+import type { DiffResult } from "./lib/diff";
 
 const STORAGE_KEY = "arindir:code:v2";
 const LANG_KEY = "arindir:lang:v1";
@@ -48,15 +52,26 @@ function loadInitialLang(): LangChoice {
   return "auto";
 }
 
+interface LastChange extends DiffResult {
+  code: string;
+  scoreBefore: number;
+  scoreAfter: number;
+}
+
 export default function App() {
   const [code, setCode] = useState<string>(loadInitialCode);
   const [langChoice, setLangChoice] = useState<LangChoice>(loadInitialLang);
   const [history, setHistory] = useState<number[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [toast, setToast] = useState<{ id: number; msg: string } | null>(null);
+  const [lastChange, setLastChange] = useState<LastChange | null>(null);
+  const [diffOpen, setDiffOpen] = useState(false);
   const toastTimer = useRef(0);
 
-  const analysis = useMemo(() => analyze(code, langChoice), [code, langChoice]);
+  const analysis = useMemo(
+    () => analyze(code, langChoice === "auto" ? "unknown" : langChoice),
+    [code, langChoice]
+  );
   const langMeta = LANG_META[analysis.lang];
 
   /* kodu + dil seçimini sakla */
@@ -106,14 +121,44 @@ export default function App() {
   const highlight = useMemo(() => new Set(selected?.lines ?? []), [selected]);
   const highlightHex = selected ? SEVERITY_META[selected.severity].hex : "#ffab3d";
 
+  /* ---------- eylemler ---------- */
+
   const handleFix = () => {
+    const scoreBefore = analysis.score;
     const res = autoFix(code, analysis.lang);
     if (res.applied === 0) {
       showToast("Bu dilde uygulanacak güvenli düzeltme kalmadı.");
       return;
     }
+    const d = diffLines(code, res.code);
+    const scoreAfter = analyze(res.code, langChoice === "auto" ? "unknown" : langChoice).score;
+    setLastChange({ ...d, code: res.code, scoreBefore, scoreAfter });
+    setDiffOpen(true);
     setCode(res.code);
     showToast(`${res.applied} güvenli düzeltme uygulandı ✦`);
+  };
+
+  const triggerDownload = (filename: string, content: string, mime: string) => {
+    const blob = new Blob([content], { type: mime });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = filename;
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 800);
+  };
+
+  const handleDownloadCode = () => {
+    const name = `arindirilmis-kod${langMeta.ext}`;
+    triggerDownload(name, code, "text/plain;charset=utf-8");
+    showToast(`${name} indirildi.`);
+  };
+
+  const handleDownloadReport = () => {
+    triggerDownload("arindir-rapor.md", buildMarkdownReport(analysis, code), "text/markdown;charset=utf-8");
+    showToast("arindir-rapor.md indirildi — bulgular + öneriler.");
   };
 
   const handleCopy = async () => {
@@ -135,6 +180,7 @@ export default function App() {
     const next = kind === "js" ? MESSY_SAMPLE : kind === "dart" ? DART_SAMPLE : CLEAN_SAMPLE;
     setCode(next);
     setSelectedId(null);
+    setLastChange(null);
     showToast(
       kind === "js"
         ? "Dağınık JavaScript örneği yüklendi."
@@ -182,24 +228,23 @@ export default function App() {
             <div className="lg:pb-2">
               <p className="max-w-md text-[15px] leading-relaxed text-ink-300">
                 Arındır önce kodun <em className="not-italic text-ink-100">dilini tanır</em>, sonra
-                yalnızca o dilin kurallarını çalıştırır. Dart'ta{" "}
-                <code className="rounded-sm bg-ink-800 px-1 font-mono text-[13px] text-mint-400">==</code>{" "}
-                ve{" "}
-                <code className="rounded-sm bg-ink-800 px-1 font-mono text-[13px] text-mint-400">var</code>{" "}
-                doğrudur — JavaScript kuralları asla bulaşmaz.
+                yalnızca o dilin kurallarını çalıştırır. Bulgularla kalmaz:{" "}
+                <em className="not-italic text-ink-100">önerir</em>, eksikleri söyler, ne
+                değiştiğini satır satır gösterir ve arındırılmış kodu indirir.
               </p>
-              <div className="mt-5 flex items-center gap-5 font-mono text-[11px] uppercase tracking-wider text-ink-400">
+              <div className="mt-5 flex flex-wrap items-center gap-x-5 gap-y-2 font-mono text-[11px] uppercase tracking-wider text-ink-400">
                 <span>
                   <b className="font-display text-lg font-bold normal-case text-ember-400">6</b> dil
                 </span>
                 <span className="h-4 w-px bg-ink-600" />
                 <span>
-                  <b className="font-display text-lg font-bold normal-case text-arc-400">0</b> sunucu
+                  <b className="font-display text-lg font-bold normal-case text-arc-400">diff</b>{" "}
+                  görünümü
                 </span>
                 <span className="h-4 w-px bg-ink-600" />
                 <span>
-                  <b className="font-display text-lg font-bold normal-case text-mint-400">~0 ms</b>{" "}
-                  gecikme
+                  <b className="font-display text-lg font-bold normal-case text-mint-400">md</b>{" "}
+                  rapor
                 </span>
               </div>
             </div>
@@ -247,6 +292,23 @@ export default function App() {
                   <button className={btnGhost} onClick={() => loadSample("clean")}>
                     temiz
                   </button>
+
+                  <span className="hidden h-5 w-px bg-ink-600 sm:block" />
+
+                  {lastChange && (
+                    <button
+                      onClick={() => setDiffOpen(true)}
+                      className={`${btnGhost} flex items-center gap-1.5 border-arc-500/40 text-arc-400 hover:border-arc-400 hover:text-arc-300`}
+                      title="Son arındırmanın satır satır dökümü"
+                    >
+                      <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                        <path d="M6 3v12M6 15a3 3 0 103 3M18 21V9M18 9a3 3 0 10-3-3" strokeLinecap="round" />
+                      </svg>
+                      değişimler
+                      <span className="text-mint-400">+{lastChange.added}</span>
+                      <span className="text-coral-400">−{lastChange.removed}</span>
+                    </button>
+                  )}
                   <button
                     onClick={handleCopy}
                     className={`${btnGhost} flex items-center gap-1.5`}
@@ -257,6 +319,26 @@ export default function App() {
                       <path d="M5 15H4a2 2 0 01-2-2V4a2 2 0 012-2h9a2 2 0 012 2v1" strokeLinecap="round" />
                     </svg>
                     kopyala
+                  </button>
+                  <button
+                    onClick={handleDownloadCode}
+                    className={`${btnGhost} flex items-center gap-1.5`}
+                    title={`Kodu ${langMeta.ext} olarak indir`}
+                  >
+                    <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M12 3v12M7 10l5 5 5-5M4 21h16" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    indir
+                  </button>
+                  <button
+                    onClick={handleDownloadReport}
+                    className={`${btnGhost} flex items-center gap-1.5`}
+                    title="Bulgular + öneriler, markdown rapor"
+                  >
+                    <svg className="h-3 w-3" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+                      <path d="M6 2h9l5 5v15H6zM14 2v6h6M9 13h8M9 17h8" strokeLinecap="round" strokeLinejoin="round" />
+                    </svg>
+                    rapor
                   </button>
                   <button
                     onClick={handleFix}
@@ -283,7 +365,7 @@ export default function App() {
                 highlightHex={highlightHex}
               />
 
-              <div className="flex items-center justify-between border-t border-ink-700 bg-ink-850 px-4 py-2 font-mono text-[10.5px] text-ink-400">
+              <div className="flex items-center justify-between gap-3 border-t border-ink-700 bg-ink-850 px-4 py-2 font-mono text-[10.5px] text-ink-400">
                 <span>
                   {analysis.metrics.totalLines} satır · {analysis.chars.toLocaleString("tr-TR")} karakter
                   {selected && (
@@ -293,6 +375,17 @@ export default function App() {
                   )}
                 </span>
                 <span className="flex items-center gap-2">
+                  {lastChange && (
+                    <button
+                      onClick={() => setDiffOpen(true)}
+                      className="flex items-center gap-1.5 rounded-sm border border-ink-600 px-1.5 py-0.5 transition-colors hover:border-arc-500/50 hover:text-arc-300"
+                      title="Son değişiklikleri göster"
+                    >
+                      <span className="text-mint-400">+{lastChange.added}</span>
+                      <span className="text-coral-400">−{lastChange.removed}</span>
+                      <span className="text-ink-500">son temizlik</span>
+                    </button>
+                  )}
                   <span
                     className="flex items-center gap-1.5 rounded-sm px-1.5 py-0.5"
                     style={{ background: `${langMeta.color}1a`, color: langMeta.color }}
@@ -301,7 +394,7 @@ export default function App() {
                     {langChoice === "auto" ? "algılandı: " : "dil: "}
                     {langMeta.label}
                   </span>
-                  <span className="hidden text-ink-500 sm:inline">çok-dilli motor v1.0</span>
+                  <span className="hidden text-ink-500 xl:inline">çok-dilli motor v1.1</span>
                 </span>
               </div>
             </div>
@@ -326,6 +419,17 @@ export default function App() {
 
         <Footer />
       </div>
+
+      {/* ---- ne değişti modali ---- */}
+      {diffOpen && lastChange && (
+        <DiffModal
+          diff={lastChange}
+          filename={`yapistirilan-kod${langMeta.ext}`}
+          scoreDelta={lastChange.scoreAfter - lastChange.scoreBefore}
+          onClose={() => setDiffOpen(false)}
+          onDownload={handleDownloadCode}
+        />
+      )}
 
       {/* ---- bildirim ---- */}
       {toast && (

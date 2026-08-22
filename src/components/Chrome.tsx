@@ -60,7 +60,7 @@ export function Masthead() {
             <span className="font-mono text-[10px] uppercase tracking-wider text-mint-300">analiz canlı</span>
           </div>
           <div className="rounded-full border border-ink-600 px-2.5 py-1 font-mono text-[10px] text-ink-300">
-            v1.0
+            v1.1
           </div>
         </div>
       </div>
@@ -77,11 +77,13 @@ const TICKER_ITEMS = [
   "dart: gereksiz new",
   "dart: print() kalıntıları",
   "python: import *",
+  "eksik parantez avı",
+  "öneri motoru",
+  "değişim diff'i",
+  "md rapor indirme",
   "todo / fixme",
-  "uzun satırlar",
   "kopya bloklar",
   "iç içe derinlik",
-  "yorum oranı",
   "gizli boşluklar",
 ];
 
@@ -124,6 +126,8 @@ const CHECKS: { t: string; d: string; lang?: string; hex?: string }[] = [
   { t: "console.log kalıntıları", d: "debug sızıntısı", lang: "js", hex: "#ffbe66" },
   { t: "Yıldızlı import (Py)", d: "isim alanı kirliliği", lang: "py", hex: "#6fe3a5" },
   { t: "!important (CSS)", d: "özgüllük savaşı", lang: "css", hex: "#d2a8ff" },
+  { t: "Eksik parantez avı", d: "yapısal bütünlük", hex: "#ff8fab" },
+  { t: "İyileştirme önerileri", d: "etki sıralı reçete", hex: "#d2a8ff" },
   { t: "Kopyala-yapıştır blokları", d: "tekrar kokusu" },
   { t: "İç içe geçme derinliği", d: "ok biçimli kod" },
   { t: "TODO / FIXME / HACK", d: "açık işaretler" },
@@ -276,7 +280,7 @@ export function Footer() {
         <div className="flex items-center gap-4">
           <span className="text-ink-500">Space Grotesk · IBM Plex · JetBrains Mono</span>
           <span className="rounded-sm border border-ink-600 px-1.5 py-0.5 text-[10px] text-ink-300">
-            v1.0 · çok-dilli
+            v1.1 · öneri motoru
           </span>
         </div>
       </div>
