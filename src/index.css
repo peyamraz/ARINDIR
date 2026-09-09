@@ -1,0 +1,171 @@
+@import "tailwindcss";
+
+@theme {
+  --font-display: "Space Grotesk", ui-sans-serif, system-ui, sans-serif;
+  --font-body: "IBM Plex Sans", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", ui-monospace, SFMono-Regular, monospace;
+
+  --color-ink-950: #070b11;
+  --color-ink-900: #0b111a;
+  --color-ink-850: #0e1622;
+  --color-ink-800: #121b29;
+  --color-ink-700: #182435;
+  --color-ink-600: #223146;
+  --color-ink-500: #33465f;
+  --color-ink-400: #4e637f;
+  --color-ink-300: #7b91ab;
+  --color-ink-200: #a9bccf;
+  --color-ink-100: #d7e3ee;
+  --color-ink-50: #eef4fa;
+
+  --color-ember-300: #ffd394;
+  --color-ember-400: #ffbe66;
+  --color-ember-500: #ffab3d;
+
+  --color-mint-300: #9df0c2;
+  --color-mint-400: #6fe3a5;
+  --color-mint-500: #43cf87;
+
+  --color-coral-300: #ffa29b;
+  --color-coral-400: #ff7b72;
+  --color-coral-500: #f2554a;
+
+  --color-arc-300: #a8d4ff;
+  --color-arc-400: #79c0ff;
+  --color-arc-500: #4da3ff;
+
+  --color-viol-400: #d2a8ff;
+
+  --color-rose-300: #ffb3cd;
+  --color-rose-400: #ff8fab;
+  --color-rose-500: #f76d93;
+}
+
+html {
+  scroll-behavior: smooth;
+}
+
+body {
+  @apply bg-ink-950 font-body text-ink-100 antialiased;
+}
+
+::selection {
+  background: rgba(255, 171, 61, 0.3);
+  color: #eef4fa;
+}
+
+* {
+  scrollbar-width: thin;
+  scrollbar-color: #223146 transparent;
+}
+*::-webkit-scrollbar {
+  width: 10px;
+  height: 10px;
+}
+*::-webkit-scrollbar-thumb {
+  background: #223146;
+  border-radius: 8px;
+  border: 3px solid #0b111a;
+}
+*::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ---------- ambient layers ---------- */
+
+.bg-grid {
+  background-image:
+    linear-gradient(to right, rgba(121, 192, 255, 0.045) 1px, transparent 1px),
+    linear-gradient(to bottom, rgba(121, 192, 255, 0.045) 1px, transparent 1px);
+  background-size: 44px 44px;
+  mask-image: radial-gradient(ellipse 95% 72% at 50% 0%, black 28%, transparent 80%);
+}
+
+.bg-noise {
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='160' height='160' filter='url(%23n)' opacity='0.5'/%3E%3C/svg%3E");
+}
+
+/* ---------- keyframes ---------- */
+
+@keyframes tickerScroll {
+  from { transform: translateX(0); }
+  to { transform: translateX(-50%); }
+}
+@keyframes pulseDot {
+  0%, 100% { opacity: 1; transform: scale(1); }
+  50% { opacity: 0.4; transform: scale(0.75); }
+}
+@keyframes driftA {
+  from { transform: translate3d(-4%, -2%, 0) scale(1); }
+  to { transform: translate3d(5%, 4%, 0) scale(1.14); }
+}
+@keyframes driftB {
+  from { transform: translate3d(3%, 5%, 0) scale(1.06); }
+  to { transform: translate3d(-5%, -4%, 0) scale(1); }
+}
+@keyframes blinkCaret {
+  0%, 45% { opacity: 1; }
+  55%, 100% { opacity: 0; }
+}
+@keyframes toastIn {
+  from { opacity: 0; transform: translate(-50%, 14px); }
+  to { opacity: 1; transform: translate(-50%, 0); }
+}
+@keyframes riseIn {
+  from { opacity: 0; transform: translateY(9px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes modalIn {
+  from { opacity: 0; transform: translateY(16px) scale(0.97); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* ---------- motion helpers ---------- */
+
+.tick-track {
+  animation: tickerScroll 38s linear infinite;
+}
+.ticker:hover .tick-track {
+  animation-play-state: paused;
+}
+.ticker-mask {
+  mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+}
+.live-dot {
+  animation: pulseDot 1.8s ease-in-out infinite;
+}
+.glow-a {
+  animation: driftA 16s ease-in-out infinite alternate;
+}
+.glow-b {
+  animation: driftB 19s ease-in-out infinite alternate;
+}
+.caret-blink {
+  animation: blinkCaret 1.1s steps(1) infinite;
+}
+.toast-in {
+  animation: toastIn 0.28s cubic-bezier(0.2, 0.9, 0.3, 1.15) both;
+}
+.rise-in {
+  animation: riseIn 0.45s cubic-bezier(0.2, 0.7, 0.2, 1) both;
+}
+
+.reveal {
+  opacity: 0;
+  transform: translateY(22px);
+  transition: opacity 0.7s ease, transform 0.7s cubic-bezier(0.2, 0.7, 0.2, 1);
+}
+.reveal.shown {
+  opacity: 1;
+  transform: none;
+}
+
+/* ---------- editor ---------- */
+
+.code-area {
+  caret-color: #ffbe66;
+  tab-size: 2;
+}
+.code-area:focus {
+  outline: none;
+}
